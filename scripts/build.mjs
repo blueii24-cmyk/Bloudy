@@ -1,0 +1,48 @@
+/**
+ * Static build — Vercel's Vite preset expects `npm run build` to emit `dist/`.
+ * bloud has no bundler: the client is app.js + app.css, already concatenated
+ * from app/*.js and app.css sources. This just stages the public files.
+ *
+ * api/ and lib/ stay at the repository root — Vercel picks them up as
+ * serverless functions automatically.
+ */
+
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const OUT = path.join(ROOT, 'dist');
+
+const PUBLIC = [
+  'index.html',
+  'app.js',
+  'app.css',
+  'manifest.webmanifest',
+  'icon.svg',
+];
+
+fs.rmSync(OUT, { recursive: true, force: true });
+fs.mkdirSync(OUT, { recursive: true });
+
+for (const file of PUBLIC) {
+  const src = path.join(ROOT, file);
+  if (!fs.existsSync(src)) throw new Error(`missing public file: ${file}`);
+  fs.copyFileSync(src, path.join(OUT, file));
+}
+
+// guard: app.js is generated from app/*.js — fail the build if it is stale
+const sources = fs
+  .readdirSync(path.join(ROOT, 'app'))
+  .filter((f) => f.endsWith('.js'))
+  .sort();
+const joined = sources.map((f) => fs.readFileSync(path.join(ROOT, 'app', f), 'utf8')).join('');
+const built = fs.readFileSync(path.join(ROOT, 'app.js'), 'utf8');
+if (joined.trim() !== built.trim()) {
+  console.warn('warning: app.js is out of date with app/*.js — run `cat app/*.js > app.js`');
+}
+
+const size = fs
+  .readdirSync(OUT)
+  .reduce((n, f) => n + fs.statSync(path.join(OUT, f)).size, 0);
+console.log(`built dist/ — ${PUBLIC.length} files, ${(size / 1024).toFixed(1)} KB`);

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="bloud — your Dropbox music library, streamed.">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23ff0033'/%3E%3Cpath d='M12 8v16l12-8z' fill='%23fff'/%3E%3C/svg%3E">
+<title>bloud</title>
+<link rel="stylesheet" href="/app.css">
+</head>
+<body data-v="home">
+<div class="glow"></div>
+<main>
+  <section id="home" class="view on"></section>
+  <section id="search" class="view"></section>
+  <section id="library" class="view"></section>
+</main>
+<button class="fab" id="fabNew"><span data-i="plus"></span><span id="fabTxt">New</span></button>
+
+<div class="mini" id="mini" hidden>
+  <div class="art" id="mArt"></div>
+  <div class="meta"><b class="tt"></b><span class="aa"></span></div>
+  <button class="ic" id="mSync" data-i="cast"></button>
+  <button class="ic pp"></button>
+  <div class="bar" id="bar"></div>
+</div>
+<nav>
+  <button class="on" data-v="home"><span data-i="home" data-c="fl"></span>Home</button>
+  <button data-v="search"><span data-i="search"></span>Search</button>
+  <button data-v="library"><span data-i="library" data-c="fl"></span>Library</button>
+</nav>
+
+<div class="full paused" id="full">
+  <div class="pt">
+    <button class="ic" id="cl" data-i="chev"></button>
+    <div class="seg"><button class="on" data-mode="audio" data-i="head"></button><button data-mode="video" data-i="video"></button></div>
+    <span style="display:flex"><button class="ic" id="fSync" data-i="cast"></button><button class="ic" id="fDots" data-i="dots" data-f="1"></button></span>
+  </div>
+  <div class="cover" id="cov"><div class="art" id="fArt"></div><canvas id="viz"></canvas><video id="vid" playsinline></video></div>
+  <div class="ptt"><div><h1 class="tt"></h1><p class="aa"></p></div><span data-i="chevR" id="artJump" style="cursor:pointer"></span></div>
+  <div class="pills">
+    <div class="pill" id="lk"><button class="th" data-i="thumb" data-f="1"></button><span id="lkCnt">Like</span><hr><button class="rot" data-i="thumb" data-f="1"></button></div>
+    <button class="pill" id="lyBtn"><span data-i="quote" data-f="1"></span>Lyrics</button>
+    <button class="pill" id="cmtBtn"><span data-i="comment"></span><span id="cmtCnt">Notes</span></button>
+    <button class="pill" id="saveBtn"><span data-i="save"></span>Save</button>
+    <button class="pill" id="shPill"><span data-i="share"></span>Share</button>
+    <button class="pill" id="dlBtn"><span data-i="download"></span><span id="dlTxt">Download</span></button>
+  </div>
+  <div class="sk" id="sk"><i></i><input type="range" id="seek" min="0" max="1000" value="0" aria-label="Seek"></div>
+  <div class="times"><span id="cur">0:00</span><span id="tot">0:00</span></div>
+  <div class="ctrls">
+    <button class="ic" id="shuf" data-i="shuffle"></button>
+    <button class="ic" id="pv" data-i="prev" data-f="1"></button>
+    <button class="play pp"></button>
+    <button class="ic" id="nx" data-i="next" data-f="1"></button>
+    <button class="ic" id="rep" data-i="repeat"></button>
+  </div>
+  <div class="qh" id="qh"><i></i><span id="mix"></span></div>
+
+  <div class="sheet" id="sheet">
+    <div class="srow" id="sRow"><div class="art" id="sArt"></div><div class="meta"><b class="tt"></b><span class="aa"></span></div><button class="ic" id="sSync" data-i="cast"></button><button class="ic pp"></button></div>
+    <div class="grab"></div>
+    <div class="shd"><b id="sTitle">Lyrics</b><button class="ic" id="sx" data-i="close"></button></div>
+    <div class="sbody" id="sBody"></div>
+    <button class="share" id="share"><span data-i="share"></span>Share</button>
+  </div>
+</div>
+
+<div class="modal" id="modal">
+  <div class="mbox">
+    <div class="grab"></div>
+    <div class="shd"><b id="mTitle">Menu</b><button class="ic" id="mx" data-i="close"></button></div>
+    <div class="mbody" id="mBody"></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<div class="offline-bar" id="offlineBar">Offline — showing your downloaded music</div>
+
+<script src="/app.js"></script>
+</body>
+</html>

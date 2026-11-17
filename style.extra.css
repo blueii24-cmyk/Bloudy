@@ -1,0 +1,90 @@
+/* ── bloud additions (kept alongside the original YT-Music styling) ───────── */
+.mini[hidden]{display:none}
+.offline-bar{position:fixed;left:0;right:0;top:0;z-index:65;background:#3a2a00;color:#ffd98a;font-size:12px;text-align:center;padding:6px;display:none}
+body.offline .offline-bar{display:block}
+body.offline{padding-top:26px}
+
+/* status pill / first-run setup card */
+.status{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mu)}
+.status i{width:7px;height:7px;border-radius:50%;background:#4caf50;flex:none}
+.status.warn i{background:#ffb300}.status.err i{background:#ff4e6a}
+.setup{margin:18px 0 8px;padding:18px;border-radius:16px;background:#ffffff12;border:1px solid #ffffff1f}
+.setup h3{margin:0 0 6px;font-size:17px;font-weight:600}
+.setup p{margin:0 0 14px;font-size:13px;line-height:1.5;color:var(--mu)}
+.setup code{background:#ffffff1a;padding:2px 6px;border-radius:5px;font-size:12px}
+.setup .row-line{display:flex;gap:10px;flex-wrap:wrap}
+.setup button{height:40px;padding:0 16px;border-radius:999px;background:#fff;color:#000;font-weight:600;font-size:14px;overflow:hidden;position:relative}
+.setup button.sec{background:#ffffff1f;color:#fff}
+
+/* section header actions */
+.sh .act{display:flex;align-items:center;gap:8px}
+.sh .pa{overflow:hidden;position:relative;white-space:nowrap}
+
+/* 2-up card grids for artists / albums / folders */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px 12px;margin-top:6px}
+.gcard{cursor:pointer;min-width:0}
+.gcard .art{width:100%;height:auto;aspect-ratio:1;border-radius:8px}
+.gcard b{display:block;margin-top:8px;font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gcard span{display:block;font-size:12px;color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gcard .collage{width:100%;height:auto;aspect-ratio:1;border-radius:8px}
+
+/* loading skeletons */
+.sk-row{display:grid;grid-template-columns:61px 1fr;gap:14px;align-items:center;height:77px}
+.sk-row i{width:61px;height:61px;border-radius:5px;background:#ffffff14}
+.sk-row u{display:block;height:12px;border-radius:6px;background:#ffffff14;margin-bottom:8px}
+.sk-row u:last-child{width:55%}
+.shim{position:relative;overflow:hidden}
+.shim::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,#ffffff14,transparent);animation:shim 1.4s infinite}
+@keyframes shim{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
+
+/* inline seek preload hint on rows */
+.mini .ic svg{pointer-events:none}
+nav button>span svg{pointer-events:none}
+
+/* player: extra control for queue pill */
+.qh{flex-direction:row;justify-content:center;gap:8px}
+.qh svg{width:18px;height:18px}
+
+/* modal list helpers */
+.mlist{display:flex;flex-direction:column}
+.mpl{display:grid;grid-template-columns:48px 1fr auto;gap:12px;align-items:center;padding:8px 4px;border-radius:12px;cursor:pointer;width:100%;text-align:left;overflow:hidden;position:relative}
+.mpl:active{background:#ffffff1f}
+.mpl .art{width:48px;height:48px}
+.mpl b{display:block;font-size:15px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mpl small{color:var(--mu);font-size:12px}
+.toggle{width:44px;height:26px;border-radius:999px;background:#ffffff2e;position:relative;flex:none;transition:background .2s}
+.toggle::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:transform .2s}
+.toggle.on{background:#fff}
+.toggle.on::after{transform:translateX(18px);background:#000}
+.mrow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 4px;font-size:15px}
+.mrow small{display:block;color:var(--mu);font-size:12px;margin-top:2px}
+.mnote{font-size:12px;color:var(--mu);line-height:1.5}
+.pill-btn{height:40px;padding:0 16px;border-radius:999px;background:#ffffff1f;font-size:14px;font-weight:500;overflow:hidden;position:relative}
+.pill-btn.on{background:#fff;color:#000}
+kbd{background:#ffffff1f;border-radius:4px;padding:1px 5px;font-size:11px}
+
+/* lyrics lines that are plain text (no timestamps) */
+.sbody p.plain{color:#ffffffb3;font-size:22px;font-weight:600}
+.sbody p.plain.on{color:#fff}
+
+/* album hero on library detail */
+.hero{display:flex;gap:16px;align-items:flex-end;margin:4px 0 18px}
+.hero .art{width:118px;height:118px;border-radius:10px}
+.hero h2{margin:0;font-size:26px;letter-spacing:-.02em;line-height:1.15}
+.hero p{margin:6px 0 0;color:var(--mu);font-size:13px}
+
+/* mini-player progress + cast button states */
+.mini .ic.on{color:#ff4e6a}
+.hide{display:none!important}
+
+/* coloured-initial artwork fallback (looks intentional, not broken) */
+.art .ini{position:relative;z-index:1;display:grid;place-items:center;width:100%;height:100%;
+  font-weight:600;font-size:calc(var(--ini, 20px));color:#fff;text-shadow:0 1px 6px #0006;letter-spacing:.02em}
+.art{display:grid}
+.art.has-img{display:block}
+.row .art .ini{font-size:19px}.tile .art .ini,.art .ini{font-size:22px}
+.lrow .art .ini{font-size:20px}.cover .art .ini{font-size:56px}
+.mini .art .ini{font-size:18px}.av .ini{font-size:14px}
+
+/* mini player sits cleanly above the transparent-ish nav */
+.mini{border-bottom:1px solid #ffffff10}

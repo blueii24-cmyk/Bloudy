@@ -1,0 +1,21 @@
+{
+  "name": "bloud",
+  "version": "2.0.0",
+  "private": true,
+  "description": "bloud \u2014 your Dropbox folder as a streaming music app",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@vercel/blob": "^0.27.0"
+  },
+  "scripts": {
+    "dev": "node scripts/dev-server.mjs",
+    "build": "node scripts/build.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/blueii24-cmyk/bloud-app.git"
+  }
+}
