@@ -1,88 +1,98 @@
 # bloud — deploy runbook
 
-Status right now:
+## Status (verified 2026-11-17)
 
 | Step | State |
 | --- | --- |
-| Supabase: old project `gaewxsaaaraafyeltiiv` deleted | done |
-| Supabase: new project `cjcujxnotnidykpjckci` (Bloud, ap-south-1) created | done |
-| `bloud_kv` + `bloud_auth` created, RLS on, anon/authenticated revoked | done |
-| Vault round-trip tested (set / overwrite / delete / settings / token) | **verified working** |
-| Vercel: stale `VITE_SUPABASE_*` vars deleted | done |
-| Vercel: `SUPABASE_URL`, `SUPABASE_SERVICE_KEY` set for the new project | done |
-| Vercel project kept (`bloud`, `bloud-eta.vercel.app`) — code not yet replaced | pending |
-| GitHub: old repo delete + new repo with these files | **blocked — no GitHub access here** |
+| Source verified locally against the mock Dropbox | **43/43 e2e checks pass** |
+| Source committed to git (`blueii24-cmyk/Bloudy`) | done |
+| Production deployment on Vercel project `bloud` | **done — `dpl_88senG9VqEUw3GFU3nx5bjz8e6Sn`, READY** |
+| `https://bloud-eta.vercel.app` now serves **this** app | **yes** (previously it served the older `Bloud` repo) |
+| Supabase vault (`cjcujxnotnidykpjckci`) reachable, `bloud_kv` + `bloud_auth` present, RLS on | verified |
+| `SUPABASE_URL`, `SUPABASE_SERVICE_KEY` in Vercel | verified (`/api/hooks` reports `vault: true`) |
+| `DROPBOX_APP_KEY` in Vercel | **still missing — the only blocker** |
 
-## The one thing left: get these files into a repo
+### What production says right now
 
-The workspace folder `/home/user/bloud` is a git repo with one clean commit on
-`main` (`1484ae1`), 38 tracked files, `.gitignore` excluding `dist/`,
-`node_modules/`, `test/shots/` and env files. `bloud-deploy.tar.gz` is the same
-tree as an archive.
-
-### Preferred: new repo, push from your machine
-
-```bash
-# 1. create an empty repo on GitHub (no README, no .gitignore):
-#    github.com/new  →  name it e.g. bloud-app
-
-# 2. push the prepared repo
-git clone <handled by you: copy /home/user/bloud from the workspace>
-cd bloud
-git remote add origin https://github.com/blueii24-cmyk/bloud-app.git
-git push -u origin main
+```
+GET /api/hooks              → {"ok":true,"needsPasscode":false,"oauth":false,
+                               "connected":false,"folder":"/bloud","vault":true,...}
+GET /api/dbx?action=status  → {"ok":true,"connected":false,"folder":"/bloud"}
+GET /api/settings           → {"ok":true,"folder":"/bloud"}
+GET /api/auth/start         → 400 "Dropbox is not configured yet.
+                               Add DROPBOX_APP_KEY in Vercel ... and redeploy."
+GET /                        → first-run "Connect your Dropbox folder" card + 6 demo songs
 ```
 
-### Then point the existing Vercel project at it
+So the app boots, the vault works, the passcode gate is off, and the only thing
+preventing a working player is the Dropbox app key.
 
-Vercel → project **bloud** → Settings → Git → **Connect Git Repository** →
-`bloud-app`, production branch `main`. Redeploy.
+## The one step left: `DROPBOX_APP_KEY`
 
-That keeps the URL `https://bloud-eta.vercel.app` (no downtime, old deployments
-stay around until replaced), which is what you asked for.
+1. <https://www.dropbox.com/developers/apps> → **Create app**
+   - **Scoped access**
+   - **Full Dropbox** (access to all files and folders)
+   - Name it anything, e.g. `bloud`
+2. **Permissions** tab → tick and submit:
+   - `files.metadata.read`
+   - `files.content.read`
+   - `files.content.write`
+3. **OAuth 2** tab → **Redirect URIs** → add exactly:
 
-If the first build complains about the framework preset, set:
-Framework **Other**, Build Command `npm run build`, Output Directory `dist`.
-The project is currently on the `vite` preset, whose build command is already
-`npm run build` + `dist`, so it should build as-is.
+   ```
+   https://bloud-eta.vercel.app/api/auth/callback
+   ```
 
-### GitHub connector alternative
+   (No app secret needed — the flow is PKCE, so only the app key is used.)
+4. Copy the **App key** and add it in Vercel → project **bloud** → Settings →
+   Environment Variables as `DROPBOX_APP_KEY`, for production, preview **and**
+   development. Redeploy (env changes only apply to new deployments).
 
-Enable the GitHub app for this conversation and I will do the repo creation,
-the file push, and the Vercel connection myself.
+Then open <https://bloud-eta.vercel.app> and tap **Connect Dropbox** once — the
+previous authorization lived in the deleted Supabase project.
 
-## Env vars still needed in Vercel
+Setting the variable does not require any code change: `lib/dbx.js` reads it as
+`oauthConfigured = Boolean(process.env.DROPBOX_APP_KEY)`, so `/api/auth/start`
+starts issuing PKCE redirects the moment a new deployment has the variable.
 
-| Variable | Value |
+## Optional variables
+
+| Variable | Effect |
 | --- | --- |
-| `DROPBOX_APP_KEY` | **you must supply** — from your Dropbox app |
-| `SUPABASE_URL` | `https://cjcujxnotnidykpjckci.supabase.co` (set) |
-| `SUPABASE_SERVICE_KEY` | new service_role key (set, stored as sensitive) |
-| `BLOUD_FOLDER` | `/bloud` (optional, default) |
-| `BLOUD_PASSCODE` | optional: gate the public URL |
+| `BLOUD_FOLDER` | library folder, default `/bloud` |
+| `BLOUD_PASSCODE` | gates the public URL behind a passcode (currently **off**) |
+| `BLOB_READ_WRITE_TOKEN` + `BLOUD_CACHE_MEDIA=1` | mirror audio into Vercel Blob for faster repeat plays |
+| `DROPBOX_REDIRECT_URI` | pin the callback URL if you serve from another host |
 
-## Dropbox console step (unchanged)
+## How the deploy was done
 
-Redirect URI must be exact:
+The GitHub → Vercel *connector* cannot push this app (the source has to go
+inline and `app.css` alone is a 30 KB single line), so the deployment was made
+with the Vercel API against the existing project, from the git commit:
 
 ```
-https://bloud-eta.vercel.app/api/auth/callback
+commit  Bloudy @ arena/cb10c35e-bloudy
+project prj_MjdA6ArwmPnAsOiMJQmhCESO1LAs (bloud, team BlueLabs)
+target  production
 ```
 
-Scopes: `files.metadata.read`, `files.content.read`, `files.content.write`,
-Scoped access, Full Dropbox. Only the App key is needed (PKCE, no secret).
+The project was **not** deleted, so `bloud-eta.vercel.app`, the env vars and the
+registered Dropbox redirect URI are all preserved.
 
-⚠️ If you already added the redirect URI for the *previous* Supabase set-up, it
-is still valid — the new Supabase project only changed the credential vault, not
-the URL. But any Dropbox authorization done before now is stored in the **old,
-deleted** Supabase project, so you will need to tap **Connect Dropbox** once more
-after the redeploy.
+⚠️ The project's *git link* still points at the old `blueii24-cmyk/Bloud` repo
+(`master`). Pushes there will not redeploy this code, but the link means a push
+to that repo would produce a deployment of the old app. Re-point it at
+`blueii24-cmyk/Bloudy`, production branch `main`, in Vercel → project `bloud` →
+Settings → Git, when convenient.
 
 ## Local verification
 
 ```bash
-cd bloud
+npm install
+BLOUD_MOCK=1 PORT=3100 node scripts/dev-server.mjs   # run in the background
+python3 test/e2e.py                                  # expect 43/43
 npm run build                                        # stages dist/ (131.6 KB)
-BLOUD_MOCK=1 PORT=3100 node scripts/dev-server.mjs   # demo library
-python3 test/e2e.py                                  # 43/43 checks
 ```
+
+`python3 test/e2e.py` needs Playwright plus a Chromium build
+(`pip install playwright && python3 -m playwright install chromium`).
