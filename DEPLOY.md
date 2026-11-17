@@ -1,38 +1,43 @@
 # bloud — deploy runbook
 
-## Status (verified 2026-11-17)
+## Current infrastructure (as of 2026-11-17)
 
-| Step | State |
+| Thing | Value |
 | --- | --- |
-| Source verified locally against the mock Dropbox | **43/43 e2e checks pass** |
-| Source committed to git (`blueii24-cmyk/Bloudy`) | done |
-| Production deployment on Vercel project `bloud` | **done — `dpl_88senG9VqEUw3GFU3nx5bjz8e6Sn`, READY** |
-| `https://bloud-eta.vercel.app` now serves **this** app | **yes** (previously it served the older `Bloud` repo) |
-| Supabase vault (`cjcujxnotnidykpjckci`) reachable, `bloud_kv` + `bloud_auth` present, RLS on | verified |
-| `SUPABASE_URL`, `SUPABASE_SERVICE_KEY` in Vercel | verified (`/api/hooks` reports `vault: true`) |
-| `DROPBOX_APP_KEY` in Vercel | **still missing — the only blocker** |
+| GitHub repo | `blueii24-cmyk/Bloudy`, branch `main` |
+| Vercel project | **`bloud-app`** — `prj_2VWWPxZEilfv4FL5tP4No1tMX5Uv` (team `BlueLabs`) |
+| Vercel git link | `blueii24-cmyk/Bloudy` @ `main` ✅ (correct — auto-deploys on push) |
+| Production URL | **`https://bloud-eta.vercel.app`** (plus `bloud-app.vercel.app`) |
+| Supabase project | `Bloud` — ref `cjcujxnotnidykpjckci` |
+| Supabase tables | `public.bloud_kv`, `public.bloud_auth` — RLS on, anon/authenticated revoked |
+| Vercel env set | `SUPABASE_URL`, `SUPABASE_SERVICE_KEY` (production, preview, development) |
+| Missing env | **`DROPBOX_APP_KEY`** — the only blocker |
 
-### What production says right now
+The previous project `bloud` (`prj_MjdA6ArwmPnAsOiMJQmhCESO1LAs`) was deleted; it
+was still git-linked to the old `Bloud` repo on `master`, which meant any push
+there would have redeployed the wrong app over the live URL. Its address
+`bloud-eta.vercel.app` was moved to the new project first, so **there is no
+downtime and the URL is unchanged**. The old `Bloud` repo still exists on GitHub
+(the arena integration is not a repo admin, so it could not be deleted or
+archived — see `docs/old-repo-backup/README-OLD-REPO.md`); nothing references it
+any more.
+
+## What production says right now
 
 ```
 GET /api/hooks              → {"ok":true,"needsPasscode":false,"oauth":false,
                                "connected":false,"folder":"/bloud","vault":true,...}
 GET /api/dbx?action=status  → {"ok":true,"connected":false,"folder":"/bloud"}
-GET /api/settings           → {"ok":true,"folder":"/bloud"}
 GET /api/auth/start         → 400 "Dropbox is not configured yet.
                                Add DROPBOX_APP_KEY in Vercel ... and redeploy."
-GET /                        → first-run "Connect your Dropbox folder" card + 6 demo songs
+GET /                        → first-run "Connect your Dropbox folder" card + demo songs
 ```
-
-So the app boots, the vault works, the passcode gate is off, and the only thing
-preventing a working player is the Dropbox app key.
 
 ## The one step left: `DROPBOX_APP_KEY`
 
 1. <https://www.dropbox.com/developers/apps> → **Create app**
    - **Scoped access**
-   - **Full Dropbox** (access to all files and folders)
-   - Name it anything, e.g. `bloud`
+   - **Full Dropbox**
 2. **Permissions** tab → tick and submit:
    - `files.metadata.read`
    - `files.content.read`
@@ -43,17 +48,21 @@ preventing a working player is the Dropbox app key.
    https://bloud-eta.vercel.app/api/auth/callback
    ```
 
-   (No app secret needed — the flow is PKCE, so only the app key is used.)
-4. Copy the **App key** and add it in Vercel → project **bloud** → Settings →
-   Environment Variables as `DROPBOX_APP_KEY`, for production, preview **and**
-   development. Redeploy (env changes only apply to new deployments).
+   No app secret is needed (PKCE).
+4. Vercel → project **bloud-app** → Settings → Environment Variables →
+   `DROPBOX_APP_KEY` for production, preview **and** development → redeploy
+   (push to `main`, or Deployments → Redeploy).
 
 Then open <https://bloud-eta.vercel.app> and tap **Connect Dropbox** once — the
 previous authorization lived in the deleted Supabase project.
 
-Setting the variable does not require any code change: `lib/dbx.js` reads it as
-`oauthConfigured = Boolean(process.env.DROPBOX_APP_KEY)`, so `/api/auth/start`
-starts issuing PKCE redirects the moment a new deployment has the variable.
+No code change is needed: `lib/dbx.js` reads `oauthConfigured =
+Boolean(process.env.DROPBOX_APP_KEY)`, so `/api/auth/start` starts issuing PKCE
+redirects as soon as a deployment has the variable.
+
+If the app is later served from `bloud-app.vercel.app` instead, add that
+callback URL to the Dropbox app too (`.../api/auth/callback`), or pin
+`DROPBOX_REDIRECT_URI`.
 
 ## Optional variables
 
@@ -66,24 +75,19 @@ starts issuing PKCE redirects the moment a new deployment has the variable.
 
 ## How the deploy was done
 
-The GitHub → Vercel *connector* cannot push this app (the source has to go
-inline and `app.css` alone is a 30 KB single line), so the deployment was made
-with the Vercel API against the existing project, from the git commit:
+The GitHub → Vercel *connector* cannot deploy a project's source tree
+(`app.css` alone is a 30 KB single line and must go inline), so deployments use
+the Vercel API from a git commit:
 
 ```
-commit  Bloudy @ arena/cb10c35e-bloudy
-project prj_MjdA6ArwmPnAsOiMJQmhCESO1LAs (bloud, team BlueLabs)
-target  production
+project  prj_2VWWPxZEilfv4FL5tP4No1tMX5Uv (bloud-app, team BlueLabs)
+repo     blueii24-cmyk/Bloudy, branch main
+target   production
+settings framework vite · build `npm run build` · output `dist` · install `npm install --omit=dev`
 ```
 
-The project was **not** deleted, so `bloud-eta.vercel.app`, the env vars and the
-registered Dropbox redirect URI are all preserved.
-
-⚠️ The project's *git link* still points at the old `blueii24-cmyk/Bloud` repo
-(`master`). Pushes there will not redeploy this code, but the link means a push
-to that repo would produce a deployment of the old app. Re-point it at
-`blueii24-cmyk/Bloudy`, production branch `main`, in Vercel → project `bloud` →
-Settings → Git, when convenient.
+Because the project is now git-linked to `Bloudy@main`, ordinary pushes to
+`main` deploy automatically — no API call needed.
 
 ## Local verification
 
