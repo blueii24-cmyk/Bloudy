@@ -17,10 +17,8 @@ The previous project `bloud` (`prj_MjdA6ArwmPnAsOiMJQmhCESO1LAs`) was deleted; i
 was still git-linked to the old `Bloud` repo on `master`, which meant any push
 there would have redeployed the wrong app over the live URL. Its address
 `bloud-eta.vercel.app` was moved to the new project first, so **there is no
-downtime and the URL is unchanged**. The old `Bloud` repo still exists on GitHub
-(the arena integration is not a repo admin, so it could not be deleted or
-archived — see `docs/old-repo-backup/README-OLD-REPO.md`); nothing references it
-any more.
+downtime and the URL is unchanged**. The old `Bloud` repo has since been deleted
+too, so `Bloudy` is the only Bloud repo and the only one linked to Vercel.
 
 ## What production says right now
 
