@@ -650,7 +650,10 @@ function row(tr) {
   const k = T.indexOf(tr);
   const isNow = T[i] && T[i].id === tr.id;
   const off = offlineIds.has(tr.id);
-  const sub = [tr.artist, tr.sizeLabel || (tr.dur ? fmt(tr.dur) : '')].filter(Boolean).join(' • ');
+  /* Duration if known. File size only as a last resort — it is not a duration
+     and reading "9.2 MB" next to a play button is misleading. */
+  const dur = tr.dur ? fmt(tr.dur) : '';
+  const sub = [tr.artist, dur].filter(Boolean).join(' • ') || tr.sizeLabel || '';
   return `<div class="row${isNow ? ' playing' : ''}" data-k="${k}">${art(tr)}
     <div class="meta"><b>${esc(tr.name)}</b><span>${off ? ck : ''}${esc(sub)}</span></div>
     <button class="ic dots" data-dot="${k}" aria-label="More">${I('dots', 1)}</button></div>`;
@@ -896,10 +899,17 @@ function renderLibrary() {
       <div class="meta"><b>Liked music</b><span>Auto playlist • ${likedCount} song${likedCount === 1 ? '' : 's'}</span></div>
       <button class="ic" id="libLikedPlay">${I('dots', 1)}</button></div>
       ${pls.length ? pls.map((pl) => {
-        const list = tracksForIds(pl.tracks).slice(0, 4);
-        const cover = pl.auto ? `<div class="collage">${[0, 1, 2, 3].map((j) => art(list[j] || list[0])).join('')}</div>` : `<div class="collage">${[0, 1, 2, 3].map((j) => art(list[j] || list[0])).join('')}</div>`;
+        const list = tracksForIds(pl.tracks);
+        const n = list.length;
+        /* Stored id lists keep ids of deleted files, so count what is playable.
+           A one-song playlist must not repeat that one cover four times. */
+        const cover = !n
+          ? `<div class="collage empty-collage"><div class="art" style="--h:220"></div></div>`
+          : n < 4
+            ? `<div class="collage single">${art(list[0])}</div>`
+            : `<div class="collage">${[0, 1, 2, 3].map((j) => art(list[j])).join('')}</div>`;
         return `<div class="lrow" data-pl="${esc(pl.id)}">${cover}
-          <div class="meta"><b>${esc(pl.name)}</b><span>${pl.auto ? ck : ''}${pl.auto ? 'Folder' : 'Playlist'} • ${pl.tracks.length} song${pl.tracks.length === 1 ? '' : 's'}</span></div>
+          <div class="meta"><b>${esc(pl.name)}</b><span>${pl.auto ? ck : ''}${pl.auto ? 'Folder' : 'Playlist'} • ${n} song${n === 1 ? '' : 's'}</span></div>
           <button class="ic" data-plmenu="${esc(pl.id)}">${I('dots', 1)}</button></div>`;
       }).join('') : `<div class="empty" style="padding:50px 0">No playlists yet.<br><span style="font-size:13px">Make a subfolder in ${esc(server.folder)} or tap New.</span></div>`}`;
   }
@@ -1634,8 +1644,8 @@ async function openSettings() {
       <button class="pill-btn" id="setFolder">Change</button></div>
     <div class="mrow"><span>Songs<small>${T.length} in library • ${usage.count} downloaded (${fmtSize(usage.bytes)})</small></span>
       <button class="pill-btn" id="setSync">Sync</button></div>
-    <div class="mrow"><span>Liked • playlists<small>${likedTracks().length} liked • ${(DB.playlists || []).length} playlists • saved to Dropbox</small></span>
-      <button class="pill-btn" id="setPush">Save now</button></div>
+    <div class="mrow"><span>Liked • playlists<small>${likedTracks().length} liked • ${(DB.playlists || []).length} playlist${(DB.playlists || []).length === 1 ? '' : 's'} • auto-saved to Dropbox</small></span>
+      <button class="pill-btn" id="setPush">Back up</button></div>
     <div class="mrow"><span>Auto sync<small>Refresh library when you open the app</small></span>
       <div class="toggle ${DB.prefs.autoSync ? 'on' : ''}" id="tgAuto"></div></div>
     <div class="mrow"><span>Cache on device<small>Keep audio + art in this browser</small></span>

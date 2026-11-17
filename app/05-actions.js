@@ -393,8 +393,8 @@ async function openSettings() {
       <button class="pill-btn" id="setFolder">Change</button></div>
     <div class="mrow"><span>Songs<small>${T.length} in library • ${usage.count} downloaded (${fmtSize(usage.bytes)})</small></span>
       <button class="pill-btn" id="setSync">Sync</button></div>
-    <div class="mrow"><span>Liked • playlists<small>${likedTracks().length} liked • ${(DB.playlists || []).length} playlists • saved to Dropbox</small></span>
-      <button class="pill-btn" id="setPush">Save now</button></div>
+    <div class="mrow"><span>Liked • playlists<small>${likedTracks().length} liked • ${(DB.playlists || []).length} playlist${(DB.playlists || []).length === 1 ? '' : 's'} • auto-saved to Dropbox</small></span>
+      <button class="pill-btn" id="setPush">Back up</button></div>
     <div class="mrow"><span>Auto sync<small>Refresh library when you open the app</small></span>
       <div class="toggle ${DB.prefs.autoSync ? 'on' : ''}" id="tgAuto"></div></div>
     <div class="mrow"><span>Cache on device<small>Keep audio + art in this browser</small></span>
