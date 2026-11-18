@@ -7,3 +7,4 @@ dist/
 test/shots/
 *.log
 .DS_Store
+dropbox/

@@ -19,6 +19,57 @@ const AUDIO = [
   ['/bloud/Loose Track - No Folder.mp3', 4400],
 ];
 
+/**
+ * The layout the app is actually used with: one folder per song holding the
+ * audio plus its sidecars.
+ *   /bloud/Stash/<artist>/<album>/<song>.{m4a,lrc,ttml}
+ * .m4a (not .mp3) and a .ttml are the interesting cases — the ttml holds
+ * Apple-style timed lyrics and the m4a usually carries embedded cover art.
+ */
+const STASH = [
+  {
+    artist: 'gini', album: 'aashiyan', song: 'aashiyan',
+    audio: { size: 7462798 }, lrc: { size: 2172 }, ttml: { size: 24907 },
+  },
+  {
+    artist: 'john-michael-howell', album: 'queen-poet', song: 'queen-poet',
+    audio: { size: 7552598 }, lrc: { size: 1944 }, ttml: { size: 17774 },
+  },
+  {
+    artist: 'tame-impala', album: 'deadbeat', song: 'loser',
+    audio: { size: 6100000 }, lrc: { size: 1600 }, ttml: null,
+  },
+];
+
+function stashEntries() {
+  const out = [];
+  const folders = new Set();
+  STASH.forEach((s) => {
+    const base = `/bloud/Stash/${s.artist}/${s.album}`;
+    folders.add('/bloud/Stash');
+    folders.add(`/bloud/Stash/${s.artist}`);
+    folders.add(base);
+    const files = [[`${base}/${s.song}.m4a`, s.audio.size, 'audio']];
+    if (s.lrc) files.push([`${base}/${s.song}.lrc`, s.lrc.size, 'lrc']);
+    if (s.ttml) files.push([`${base}/${s.song}.ttml`, s.ttml.size, 'ttml']);
+    files.forEach(([path, size], k) => {
+      out.push({
+        '.tag': 'file', name: path.split('/').pop(), id: `id:stash${s.song}${k}`,
+        path_lower: path.toLowerCase(), path_display: path, size,
+        server_modified: '2026-11-18T12:28:4' + k + 'Z', rev: `rev-stash-${s.song}-${k}`,
+      });
+    });
+  });
+  [...folders].forEach((f, k) => {
+    out.push({
+      '.tag': 'folder', name: f.split('/').pop(), id: `id:stashf${k}`,
+      path_lower: f.toLowerCase(), path_display: f, size: 0,
+      server_modified: '2026-11-18T12:00:00Z',
+    });
+  });
+  return out;
+}
+
 /** Normalised to the same shape /api/dbx returns to the browser. */
 function normalize(e, base = FOLDER) {
   if (e['.tag'] === 'folder') return { tag: 'folder', name: e.name, path: e.path_display, id: e.id, size: 0, modified: '', rev: '' };
@@ -29,8 +80,10 @@ function normalize(e, base = FOLDER) {
   };
 }
 
+const WITH_STASH = process.env.BLOUD_MOCK_STASH === '1';
+
 export function mockEntries() {
-  const entries = [];
+  const entries = WITH_STASH ? [...stashEntries()] : [];
   const folders = new Set(['/bloud']);
   AUDIO.forEach(([path], idx) => {
     const parts = path.split('/');
@@ -75,6 +128,20 @@ export const mockDb = {
 };
 
 export function mockText(path) {
+  if (path && /\.lrc$/i.test(path)) {
+    /* Real-shaped LRC: [ti:]/[ar:]/[al:]/[length:] header plus timed lines.
+       Enough lines that the lyric sheet is meaningfully exercised. */
+    return '[ti:Aashiyan]\n[ar:gini]\n[al:Aashiyan]\n[length:2:54]\n'
+      + '[00:07.45]ये जहान है बे-रहम\n[00:13.58]डोर बिन खो जाएगी ये पतंग\n'
+      + '[00:20.70]फिर भी मैं छान दूँ पूरा गगन\n[00:27.81]तेरे लिए यूँ रहूँ बे-सबर\n'
+      + '[00:35.87]पलकों पे पंछी जो सो रहे थे\n[00:39.38]वो सब भी उड़ गए\n';
+  }
+  if (path && /\.ttml$/i.test(path)) {
+    return '<?xml version="1.0"?><tt xmlns="http://www.w3.org/ns/ttml"><body><div>'
+      + '<p begin="7.450" end="11.553"><span begin="7.450">Line</span> <span begin="8.1">one</span></p>'
+      + '<p begin="1:00.895" end="1:04.000"><span begin="1:00.895">Line</span> <span begin="1:01.2">two</span></p>'
+      + '</div></body></tt>';
+  }
   if (path.endsWith('.lrc')) return LRC;
   if (path.endsWith('.bloud_db.json')) return JSON.stringify(mockDb);
   return null;

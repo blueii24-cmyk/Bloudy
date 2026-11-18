@@ -399,3 +399,37 @@ kbd{background:#ffffff1f;border-radius:4px;padding:1px 5px;font-size:11px}
 .gcard:active{transform:scale(.97);opacity:.85}
 .gcard b{margin-top:9px;line-height:1.25}
 .gcard span{margin-top:2px}
+
+/* 12. Lyrics in Devanagari (Hindi/Punjabi and friends) rendered as empty
+       "tofu" boxes on any device without a matching system font — most
+       desktops, and plenty of Android builds. Load a compact subset locally so
+       it works offline and needs no external CDN. font-display:swap keeps first
+       paint fast; the Latin UI is unaffected because this family is only used
+       as a fallback after the system stack. */
+/* One face only, declared as the whole 100–900 range so bold lyric lines reuse
+   it and the browser synthesises the weight.
+
+   The unicode-range MUST include space and the ASCII punctuation that appears
+   inside a lyric line. Font fallback is per-character and only applies to
+   codepoints listed here, so omitting U+0020/U+002D split the shaping run and
+   every line containing " - " or a space before a matra came out as tofu. */
+@font-face{
+  font-family:'Noto Sans Devanagari';
+  font-style:normal;
+  font-weight:100 900;
+  font-display:swap;
+  src:url('/fonts/noto-sans-devanagari-devanagari-400-normal.woff2') format('woff2');
+  unicode-range:U+0020-002F,U+003A-0040,U+005B-0060,U+0900-097F,U+A8E0-A8FF,U+1CD0-1CF9;
+}
+/* Append the Devanagari family to the end of the real stacks. Declaring the
+   family anywhere in the list is enough for the browser to fall back to it,
+   per-glyph, only for characters the earlier fonts lack. */
+body{font-family:"Google Sans Text","Google Sans",system-ui,Roboto,"Noto Sans Devanagari",sans-serif}
+.sbody p{font-family:"Google Sans Text","Google Sans",system-ui,Roboto,"Noto Sans Devanagari",sans-serif}
+.ptt h1,.ptt p,.meta b,.meta span,.lrow .meta b,.lrow .meta span,.shd b{
+  font-family:inherit;
+  /* inherit alone won't trigger the fallback, so restate the full stack */
+}
+.ptt h1,.ptt p,.meta b,.meta span,.lrow .meta b,.lrow .meta span{
+  font-family:"Google Sans Text","Google Sans",system-ui,Roboto,"Noto Sans Devanagari",sans-serif;
+}

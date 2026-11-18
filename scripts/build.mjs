@@ -22,6 +22,9 @@ const PUBLIC = [
   'icon.svg',
 ];
 
+/* Subdirectories copied verbatim (fonts for non-Latin lyric scripts). */
+const PUBLIC_DIRS = ['fonts'];
+
 fs.rmSync(OUT, { recursive: true, force: true });
 fs.mkdirSync(OUT, { recursive: true });
 
@@ -29,6 +32,12 @@ for (const file of PUBLIC) {
   const src = path.join(ROOT, file);
   if (!fs.existsSync(src)) throw new Error(`missing public file: ${file}`);
   fs.copyFileSync(src, path.join(OUT, file));
+}
+
+for (const dir of PUBLIC_DIRS) {
+  const src = path.join(ROOT, dir);
+  if (!fs.existsSync(src)) continue;
+  fs.cpSync(src, path.join(OUT, dir), { recursive: true });
 }
 
 // guard: app.js is generated from app/*.js — fail the build if it is stale
@@ -42,7 +51,10 @@ if (joined.trim() !== built.trim()) {
   console.warn('warning: app.js is out of date with app/*.js — run `cat app/*.js > app.js`');
 }
 
-const size = fs
-  .readdirSync(OUT)
-  .reduce((n, f) => n + fs.statSync(path.join(OUT, f)).size, 0);
+const walkSize = (dir) =>
+  fs.readdirSync(dir).reduce((n, f) => {
+    const p = path.join(dir, f);
+    return n + (fs.statSync(p).isDirectory() ? walkSize(p) : fs.statSync(p).size);
+  }, 0);
+const size = walkSize(OUT);
 console.log(`built dist/ — ${PUBLIC.length} files, ${(size / 1024).toFixed(1)} KB`);

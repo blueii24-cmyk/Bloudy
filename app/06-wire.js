@@ -365,6 +365,9 @@ addEventListener('keydown', (e) => {
   if (T.every((x) => x.demo) && DB.library.length) T = hydrateCached();
   if (!T.length && !server.connected) T = [...DEMO];
   renderAll();
+  /* re-attach artwork cached in IndexedDB so covers appear instantly on a
+     cold start, before (or without) re-fetching any tags */
+  hydrateCovers();
   if (server.connected && !T.some((x) => !x.demo)) {
     await sync({ manual: false });
   } else if (!server.connected && T.every((x) => x.demo)) {
