@@ -248,8 +248,68 @@ function paint() {
 }
 
 /* ── lyrics ──────────────────────────────────────────────────────────────── */
+
+/**
+ * TTML clock → seconds. Values are "SS.mmm" under a minute and "M:SS.mmm"
+ * beyond it (e.g. "1:00.895", "2:15.860"), so parseFloat is wrong — it reads
+ * "1:00.895" as 1. Handles H:MM:SS too, just in case.
+ */
+function ttmlTime(v) {
+  if (!v) return NaN;
+  const parts = String(v).trim().split(':');
+  if (parts.length === 1) return parseFloat(parts[0]);
+  const last = parseFloat(parts.pop());
+  if (Number.isNaN(last)) return NaN;
+  let secs = last;
+  if (parts.length) secs += parseInt(parts.pop(), 10) * 60;
+  if (parts.length) secs += parseInt(parts.pop(), 10) * 3600;
+  return secs;
+}
+
+/**
+ * Apple's timed lyrics (.ttml) — what Stash ships next to each song.
+ * Lyric lines are <p begin="12.5" end="15.1">…</p>; the display text is the
+ * concatenation of the inner spans (which are per-word timing).
+ * We prefer the transliterated (Latin) text when present, because the primary
+ * text is often Devanagari and the rest of the UI is Latin — the .lrc alongside
+ * it carries the native script, so this keeps both readable.
+ */
+function parseTtml(raw) {
+  if (!raw || !/<tt[\s>]/.test(raw)) return null;
+  const lines = [];
+  const seen = new Set();
+  const pRe = /<p\b([^>]*)>([\s\S]*?)<\/p>/g;
+  let m;
+  while ((m = pRe.exec(raw)) !== null) {
+    const attrs = m[1];
+    const inner = m[2];
+    const t = (name) => {
+      const r = new RegExp(name + '="([^"]+)"').exec(attrs);
+      return r ? r[1] : '';
+    };
+    const begin = ttmlTime(t('begin'));
+    const rawText = inner
+      .replace(/<br\s*\/?>/gi, ' ')
+      .replace(/<[^>]+>/g, '')
+      .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'")
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (!rawText || Number.isNaN(begin)) continue;
+    const key = begin.toFixed(2) + rawText;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    lines.push([begin, rawText]);
+  }
+  if (!lines.length) return null;
+  return { lines: lines.sort((a, b) => a[0] - b[0]), synced: true };
+}
+
 function parseLyrics(raw, duration) {
   if (!raw) return { lines: [], synced: false };
+  // .ttml first: it is the higher-fidelity format when both are present
+  const ttml = parseTtml(raw);
+  if (ttml) return ttml;
   const re = /\[(\d{1,2}):(\d{2})(?:[.:](\d{1,3}))?\]/g;
   const synced = [];
   const plain = [];

@@ -5,11 +5,32 @@
 const AUDIO_RE = /\.(mp3|m4a|aac|wav|ogg|oga|opus|flac|weba|mp4|m4b|webm)$/i;
 const VIDEO_RE = /\.(mp4|webm|m4v)$/i;
 const IMAGE_RE = /\.(jpe?g|png|webp|gif)$/i;
-const LYRIC_RE = /\.(lrc|txt)$/i;
+const LYRIC_RE = /\.(lrc|txt|ttml)$/i;
 const COVER_NAMES = /^(cover|folder|front|artwork|album|art)\.(jpe?g|png|webp)$/i;
 
 /** "01 - Artist - Title.mp3" → {artist, title, track} */
-function parseName(filename, folderName) {
+/** "queen-poet" → "Queen Poet"; leaves already-cased text alone. */
+/** Strip download-site junk: "(MP3_320K)", "[Official Video]", "(Lyrics)". */
+function cleanTitle(str) {
+  return String(str || '')
+    .replace(/\((?:mp3|m4a|320k|128k|256k|hq)[^)]*\)/gi, ' ')
+    .replace(/\((?:official\s*)?(?:music\s*)?(?:video|audio|lyric[s]?)\b[^)]*\)/gi, ' ')
+    .replace(/\[(?:official\s*)?(?:music\s*)?(?:video|audio|lyric[s]?)\b[^\]]*\]/gi, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+function prettify(str) {
+  const v = String(str || '').replace(/[-_]+/g, ' ').replace(/\s{2,}/g, ' ').trim();
+  if (!v) return '';
+  // only re-case all-lower / all-upper values, so "ARJN" or "d4vd" survive
+  if (v === v.toLowerCase() || v === v.toUpperCase()) {
+    return v.replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+  return v;
+}
+
+function parseName(filename, folderName, folderPath) {
   let base = filename.replace(/\.[^.]+$/, '');
   let track = 0;
   const numMatch = base.match(/^\s*(\d{1,3})\s*[-._)\]]\s+/);
@@ -24,10 +45,25 @@ function parseName(filename, folderName) {
     title = dash.slice(1).join(' - ').trim();
   }
   if (!artist) {
-    const root = (folderName || '').trim();
-    artist = root && !/^(bloud|songs|music|audio|tracks)$/i.test(root) ? root : '';
+    /* Stash layout is /bloud/Stash/<artist>/<album>/<song>.m4a, so the artist
+       is not the top folder (that is "Stash") — it is the folder two levels up
+       from the file. Falling back to the top folder made every song show as
+       "Stash". */
+    const segs = (folderPath || '').replace(/^\/+|\/+$/g, '').split('/').filter(Boolean);
+    const skip = /^(bloud|stash|songs|music|audio|tracks)$/i;
+    const real = segs.filter((seg) => seg && !skip.test(seg));
+    /* <artist>/<album>/file → the artist is the second-deepest folder. With a
+       single folder there is no album, so that folder is the artist. */
+    if (real.length) {
+      artist = prettify(real.length >= 2 ? real[real.length - 2] : real[0]);
+    } else if (folderName) {
+      /* Called with just a folder name (no full path) — e.g. a flat
+         /bloud/<Folder>/song.mp3 layout. Honour it as the artist. */
+      const root = folderName.trim();
+      artist = skip.test(root) ? '' : prettify(root);
+    }
   }
-  return { artist, title: title || filename.replace(/\.[^.]+$/, ''), track };
+  return { artist, title: prettify(cleanTitle(title)) || prettify(cleanTitle(base)) || base, track };
 }
 
 function normPath(p) { return (p || '').toLowerCase(); }
@@ -66,8 +102,10 @@ function buildLibrary(entries, root) {
     if (LYRIC_RE.test(name)) {
       const stem = stemOf(f.path);
       const existing = lyrics.get(stem);
-      // prefer .lrc over .txt when both exist
-      if (!existing || /\.lrc$/i.test(name)) lyrics.set(stem, f.path);
+      /* Preference order when a song ships several lyric files: .lrc (clean
+         line-level timing) beats .ttml (word-level, verbose) beats .txt. */
+      const rank = (p) => (/\.lrc$/i.test(p) ? 3 : /\.ttml$/i.test(p) ? 2 : 1);
+      if (!existing || rank(name) > rank(baseName(existing))) lyrics.set(stem, f.path);
       return;
     }
     if (IMAGE_RE.test(name)) {
@@ -83,7 +121,7 @@ function buildLibrary(entries, root) {
     const segs = relDepth(f.path, root);
     const topFolder = segs.length > 1 ? segs[0] : '';
     const parentFolder = segs.length > 1 ? segs[segs.length - 2] : '';
-    const parsed = parseName(f.name || '', topFolder);
+    const parsed = parseName(f.name || '', topFolder, dirOf(f.path));
     const cached = tagCache.get(f.path) || {};
     const stem = stemOf(f.path);
     const dir = normPath(dirOf(f.path));
@@ -266,9 +304,36 @@ function compactTrack(tr) {
     id: tr.id, path: tr.path, name: tr.name, artist: tr.artist, album: tr.album,
     folder: tr.folder, subfolder: tr.subfolder, dur: tr.dur, size: tr.size,
     sizeLabel: tr.sizeLabel, modified: tr.modified, isVideo: tr.isVideo,
-    lyricsPath: tr.lyricsPath, coverPath: tr.coverPath, coverData: tr.coverData,
+    lyricsPath: tr.lyricsPath, coverPath: tr.coverPath,
+    /* coverData is deliberately NOT persisted here: it is a base64 JPEG that
+       runs to ~600 KB per song for m4a artwork, and localStorage caps around
+       5 MB. Persisting it silently blew the quota, so the whole library entry
+       failed to save and the cache never refreshed. Artwork lives in
+       IndexedDB instead (see coverStoreKey / hydrateCovers). */
     track: tr.track, genre: tr.genre, year: tr.year, hue: tr.hue, index: tr.index,
   };
+}
+
+/* ── artwork cache (IndexedDB, not localStorage) ─────────────────────────── */
+const coverStoreKey = (tr) => 'cover:' + tr.path;
+
+async function saveCoverToIdb(tr) {
+  if (!tr || !tr.coverData) return;
+  try { await IDB.set('meta', coverStoreKey(tr), tr.coverData); } catch { /* quota */ }
+}
+
+/** Re-attach cached artwork after a reload, without hitting the network. */
+async function hydrateCovers() {
+  if (!T.length) return;
+  let changed = false;
+  for (const tr of T) {
+    if (tr.coverData || tr.demo) continue;
+    try {
+      const data = await IDB.get('meta', coverStoreKey(tr));
+      if (data) { tr.coverData = data; changed = true; }
+    } catch { /* ignore */ }
+  }
+  if (changed) renderAll();
 }
 
 function hydrateCached() {
@@ -298,8 +363,17 @@ async function enrichTags({ limit = 6 } = {}) {
       if (tags.track) tr.track = tags.track;
       if (tags.genre) tr.genre = tags.genre;
       if (tags.year) tr.year = tags.year;
-      if (tags.cover && tags.cover.dataUrl) { tr.coverData = tags.cover.dataUrl; changed = true; }
+      if (tags.cover && tags.cover.dataUrl) {
+        tr.coverData = tags.cover.dataUrl;
+        changed = true;
+        saveCoverToIdb(tr);          // big blob → IndexedDB
+      }
       if (tags.lyrics) { tr.plainLyrics = tags.lyrics; }
+      /* Duration comes from the m4a's mvhd atom. Without it every row shows
+         0:00 and the seek bar cannot scale, so treat it as a real change. */
+      if (tags.duration && Math.abs((tr.dur || 0) - tags.duration) > 0.5) {
+        tr.dur = tags.duration; changed = true;
+      }
       if (changed) {
         DB.library = T.map(compactTrack);
         saveLocal();
