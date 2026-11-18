@@ -126,10 +126,11 @@ kbd{background:#ffffff1f;border-radius:4px;padding:1px 5px;font-size:11px}
 
 /* 6. Playlist covers: a 1–3 song playlist drew a 2x2 collage that repeated
       the same cover four times. Use one tile below four songs, and keep the
-      initials proportionate (they were sized for a big tile, not a quarter). */
-.collage.single{display:grid}
-.collage.single .art{width:100%;height:100%;border-radius:6px}
-.collage.empty-collage,.collage.empty-collage .art{width:100%;height:100%;border-radius:6px}
+      initials proportionate (they were sized for a big tile, not a quarter).
+      Both single modes collapse the 2x2 grid to one cell — otherwise the lone
+      child lands in a quarter cell and renders as a thin sliver. */
+.collage.single,.collage.empty-collage{grid-template-columns:1fr;grid-template-rows:1fr}
+.collage.single .art,.collage.empty-collage .art{width:100%;height:100%;border-radius:6px}
 .collage.empty-collage .art{opacity:.35}
 .collage .art .ini{font-size:13px;letter-spacing:-.02em}
 .collage.single .art .ini{font-size:20px}

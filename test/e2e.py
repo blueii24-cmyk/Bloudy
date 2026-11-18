@@ -247,8 +247,9 @@ with sync_playwright() as pw:
     page.wait_for_timeout(600)
     artists_rendered = page.evaluate("artists().length")
     cards = page.locator("#library .gcard").count()
+    lib_html = page.evaluate("document.querySelector('#library').innerHTML.slice(0,120)")
     check("artists grid built", artists_rendered >= 4 and cards >= 4,
-          f"artists()={artists_rendered} cards={cards} html={page.evaluate('document.querySelector(\'#library\').innerHTML.slice(0,120)')}")
+          f"artists()={artists_rendered} cards={cards} html={lib_html}")
     page.screenshot(path=f"{SHOTS}/08-artists.png")
     page.screenshot(path=f"{SHOTS}/08-artists.png")
 
